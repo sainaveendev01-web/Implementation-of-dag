@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DAG — Directed Acyclic Graph | Sai Naveen</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --border: rgba(0,0,0,0.10);
+    --border-strong: rgba(0,0,0,0.18);
+    --text: #1a1a1a;
+    --muted: #6b6b6b;
+    --hint: #a0a0a0;
+    --leaf-bg: #e4f5ed;
+    --leaf-stroke: #2d8a5e;
+    --leaf-text: #164d34;
+    --op-bg: #eeecfd;
+    --op-stroke: #6a5fd6;
+    --op-text: #3b3480;
+    --lbl-color: #b03a6e;
+    --id-color: #1a5fa5;
+    --ok: #2d8a5e;
+    --err: #c0392b;
+    --edge: #b0adb8;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 28px 20px 48px;
+  }
+
+  .page { max-width: 1160px; margin: 0 auto; }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border-strong);
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .header-left {}
+  .header-label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 5px;
+  }
+  .header h1 {
+    font-size: 22px;
+    font-weight: 400;
+    letter-spacing: -0.3px;
+    line-height: 1.2;
+  }
+  .header p {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 5px;
+    max-width: 520px;
+    line-height: 1.6;
+  }
+  .header-right {
+    text-align: right;
+    font-size: 12px;
+    line-height: 1.8;
+    color: var(--muted);
+  }
+  .header-right strong {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  /* Layout */
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 1.25fr;
+    gap: 16px;
+  }
+  @media (max-width: 680px) { .layout { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+  }
+
+  .sec-label {
+    font-size: 10.5px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: .7px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 165px;
+    padding: 12px 14px;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    resize: vertical;
+    outline: none;
+    transition: border-color .2s;
+  }
+  textarea:focus { border-color: var(--id-color); }
+
+  .btn-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 12px;
+  }
+
+  button {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12.5px;
+    padding: 7px 15px;
+    border-radius: 7px;
+    border: 1px solid var(--border-strong);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    font-weight: 400;
+    transition: background .15s, border-color .15s;
+  }
+  button:hover { background: var(--bg); }
+
+  .btn-go {
+    background: #1a1a1a;
+    color: #fff;
+    border-color: #1a1a1a;
+    font-weight: 500;
+  }
+  .btn-go:hover { background: #333; border-color: #333; }
+
+  .status {
+    font-size: 12px;
+    margin-top: 9px;
+    min-height: 18px;
+    color: var(--muted);
+  }
+  .status.ok { color: var(--ok); }
+  .status.err { color: var(--err); }
+
+  .help {
+    margin-top: 14px;
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.75;
+    border: 1px solid var(--border);
+  }
+  .help code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--text);
+    background: rgba(0,0,0,0.05);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border-strong);
+    margin-bottom: 14px;
+  }
+  .tab {
+    font-size: 12.5px;
+    font-weight: 400;
+    padding: 7px 14px;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    border-radius: 0;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .tab:hover { background: transparent; color: var(--text); }
+  .tab.on {
+    color: var(--text);
+    border-bottom-color: var(--text);
+    font-weight: 500;
+  }
+
+  .panel { display: none; }
+  .panel.on { display: block; }
+
+  /* Graph */
+  .graph-box {
+    background: var(--bg);
+    border-radius: 8px;
+    min-height: 320px;
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+  }
+  .empty {
+    font-size: 13px;
+    color: var(--hint);
+    text-align: center;
+    padding: 2rem 1rem;
+    line-height: 1.6;
+  }
+
+  /* Table */
+  .tbl-wrap {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    max-height: 360px;
+    overflow: auto;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  thead { position: sticky; top: 0; background: var(--bg); z-index: 1; }
+  th {
+    padding: 8px 10px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--muted);
+    text-align: left;
+    border-bottom: 1px solid var(--border-strong);
+    letter-spacing: .4px;
+    text-transform: uppercase;
+  }
+  td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--text);
+    word-break: break-all;
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+
+  /* Badges */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-family: 'IBM Plex Mono', monospace;
+    margin: 1px;
+  }
+  .b-leaf { background: var(--leaf-bg); color: var(--leaf-text); }
+  .b-op   { background: var(--op-bg); color: var(--op-text); }
+  .b-lbl  { background: #fce8f0; color: var(--lbl-color); }
+  .b-id   { background: #e6f0fb; color: var(--id-color); }
+
+  /* Summary */
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .stat {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+  }
+  .stat-n { font-size: 26px; font-weight: 400; color: var(--text); }
+  .stat-l { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  .env-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    max-height: 200px;
+    overflow: auto;
+  }
+  .env-row { padding: 3px 0; color: var(--muted); }
+  .env-row .k { color: var(--text); }
+  .env-row .v { color: var(--id-color); }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+    font-size: 11.5px;
+    color: var(--muted);
+    align-items: center;
+  }
+  .leg-item { display: flex; align-items: center; gap: 5px; }
+  .leg-dot { width: 12px; height: 12px; border-radius: 50%; }
+
+  footer {
+    margin-top: 22px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--hint);
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="header-left">
+      <div class="header-label">Compiler Design &nbsp;/&nbsp; Intermediate Code Generation</div>
+      <h1>Directed Acyclic Graph (DAG)</h1>
+      <p>Construct a DAG from a basic block of three-address code to identify common subexpressions and visualize node dependencies.</p>
+    </div>
+    <div class="header-right">
+      <strong>Sai Naveen</strong>
+      RA2311003050059<br>
+      Compiler Design Lab
+    </div>
+  </div>
+
+  <div class="layout">
+
+    <!-- Input Panel -->
+    <div class="card">
+      <div class="sec-label">Basic block input — TAC</div>
+      <textarea id="tac" spellcheck="false">t1 = 4 * i
+t2 = a + t1
+t3 = 4 * i
+t4 = b + t3
+t5 = t2 * t4</textarea>
+
+      <div class="btn-row">
+        <button class="btn-go" id="run">Generate DAG</button>
+        <button id="d1">Demo 1</button>
+        <button id="d2">Demo 2</button>
+        <button id="d3">Re-assign</button>
+        <button id="clr">Clear</button>
+      </div>
+
+      <div class="status" id="st">Ready</div>
+
+      <div class="help">
+        <strong>Supported syntax:</strong><br>
+        Binary op: &nbsp;<code>X = Y + Z</code><br>
+        Unary op: &nbsp;&nbsp;<code>X = - Y</code><br>
+        Copy: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<code>X = Y</code><br>
+        Operators: <code>+</code> <code>-</code> <code>*</code> <code>/</code> <code>^</code> — one instruction per line.
+      </div>
+    </div>
+
+    <!-- Output Panel -->
+    <div class="card">
+      <div class="tabs">
+        <button class="tab on" data-p="graph">Visual DAG</button>
+        <button class="tab" data-p="table">Node table</button>
+        <button class="tab" data-p="summary">Summary</button>
+      </div>
+
+      <div class="panel on" id="panel-graph">
+        <div class="graph-box" id="graph-box">
+          <div class="empty">Click <strong>Generate DAG</strong> to construct the graph.</div>
+        </div>
+        <div class="legend" id="legend" style="display:none">
+          <div class="leg-item"><div class="leg-dot" style="background:var(--leaf-bg);border:1.5px solid var(--leaf-stroke)"></div> Leaf (variable / constant)</div>
+          <div class="leg-item"><div class="leg-dot" style="background:var(--op-bg);border:1.5px solid var(--op-stroke)"></div> Operator node</div>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-table">
+        <div class="tbl-wrap" id="tbl-box">
+          <div class="empty">Click <strong>Generate DAG</strong> to view nodes.</div>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-summary">
+        <div id="sum-box">
+          <div class="empty">Click <strong>Generate DAG</strong> to view summary.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <span>DAG construction via value numbering — identifies common subexpressions in a basic block.</span>
+    <span>Sai Naveen &nbsp;|&nbsp; RA2311003050059</span>
+  </footer>
+</div>
+
+<script>
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+function parseTAC(text){
+  let lines=text.split('\n').map(l=>l.trim()).filter(l=>l!=='');
+  let nodes=[],env={},nid=1;
+  function removeLabel(v){nodes.forEach(n=>{n.labels=n.labels.filter(l=>l!==v)})}
+  function leaf(val){
+    if(env[val]!==undefined)return env[val];
+    let ex=nodes.find(n=>n.op===val&&n.left===null&&n.right===null);
+    if(ex)return ex.id;
+    let n={id:nid++,op:val,left:null,right:null,labels:[],level:0};
+    nodes.push(n);env[val]=n.id;return n.id;
+  }
+  for(let line of lines){
+    let m3=line.match(/^([a-zA-Z0-9_]+)\s*=\s*([a-zA-Z0-9_.]+)\s*([+\-*/^])\s*([a-zA-Z0-9_.]+)$/);
+    let m2=line.match(/^([a-zA-Z0-9_]+)\s*=\s*([+\-~])\s*([a-zA-Z0-9_.]+)$/);
+    let m1=line.match(/^([a-zA-Z0-9_]+)\s*=\s*([a-zA-Z0-9_.]+)$/);
+    if(m3){
+      let[,res,a1,op,a2]=m3;
+      let i1=leaf(a1),i2=leaf(a2);
+      let ex=nodes.find(n=>n.op===op&&n.left===i1&&n.right===i2);
+      if(ex){removeLabel(res);env[res]=ex.id;if(!ex.labels.includes(res))ex.labels.push(res);}
+      else{
+        let lv=Math.max(nodes.find(n=>n.id===i1).level,nodes.find(n=>n.id===i2).level)+1;
+        removeLabel(res);
+        let n={id:nid++,op,left:i1,right:i2,labels:[res],level:lv};
+        nodes.push(n);env[res]=n.id;
+      }
+    } else if(m2){
+      let[,res,op,a1]=m2;let i1=leaf(a1);
+      let ex=nodes.find(n=>n.op===op&&n.left===i1&&n.right===null);
+      if(ex){removeLabel(res);env[res]=ex.id;if(!ex.labels.includes(res))ex.labels.push(res);}
+      else{
+        let lv=nodes.find(n=>n.id===i1).level+1;
+        removeLabel(res);
+        let n={id:nid++,op,left:i1,right:null,labels:[res],level:lv};
+        nodes.push(n);env[res]=n.id;
+      }
+    } else if(m1){
+      let[,res,a1]=m1;let i1=leaf(a1);
+      removeLabel(res);env[res]=i1;
+      let nd=nodes.find(n=>n.id===i1);
+      if(!nd.labels.includes(res))nd.labels.push(res);
+    } else throw new Error('Unrecognized syntax: "'+line+'"');
+  }
+  return{nodes,env,lines};
+}
+
+function renderGraph(nodes,box){
+  document.getElementById('legend').style.display='none';
+  if(!nodes.length){box.innerHTML='<div class="empty">No nodes to display.</div>';return;}
+  let W=box.clientWidth-4||500;
+  let maxLv=Math.max(...nodes.map(n=>n.level));
+  let H=Math.max(320,(maxLv+1)*95);
+  let levels=[];
+  for(let i=0;i<=maxLv;i++)levels[i]=[];
+  nodes.forEach(n=>levels[n.level].push(n));
+  nodes.forEach(n=>{
+    let lvn=levels[n.level],idx=lvn.indexOf(n);
+    n.x=(W/(lvn.length+1))*(idx+1);
+    n.y=H-(n.level*95)-48;
+  });
+  let defs=`<defs><marker id="arr" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0 0, 7 3.5, 0 7" fill="#b0adb8"/></marker></defs>`;
+  let edges='',nodesSvg='';
+  nodes.forEach(n=>{
+    [n.left,n.right].forEach(cid=>{
+      if(cid===null)return;
+      let c=nodes.find(x=>x.id===cid);
+      edges+=`<line x1="${n.x}" y1="${n.y+22}" x2="${c.x}" y2="${c.y-22}" stroke="#b0adb8" stroke-width="1.5" marker-end="url(#arr)"/>`;
+    });
+  });
+  nodes.forEach(n=>{
+    let isLeaf=n.left===null&&n.right===null;
+    let fill=isLeaf?'#e4f5ed':'#eeecfd';
+    let stroke=isLeaf?'#2d8a5e':'#6a5fd6';
+    let tc=isLeaf?'#164d34':'#3b3480';
+    nodesSvg+=`<circle cx="${n.x}" cy="${n.y}" r="22" fill="${fill}" stroke="${stroke}" stroke-width="1.5"/>`;
+    let fs=n.op.length>3?11:13;
+    nodesSvg+=`<text x="${n.x}" y="${n.y+5}" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="${fs}" font-weight="500" fill="${tc}">${esc(n.op)}</text>`;
+    nodesSvg+=`<text x="${n.x-27}" y="${n.y-23}" text-anchor="end" font-family="IBM Plex Mono,monospace" font-size="10" fill="#a0a0a0">n${n.id}</text>`;
+    if(n.labels.length){
+      nodesSvg+=`<text x="${n.x+27}" y="${n.y+5}" font-family="IBM Plex Mono,monospace" font-size="11" font-weight="500" fill="#b03a6e">${esc(n.labels.join(', '))}</text>`;
+    }
+  });
+  box.innerHTML=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="display:block">${defs}${edges}${nodesSvg}</svg>`;
+  document.getElementById('legend').style.display='flex';
+}
+
+function renderTable(nodes,box){
+  if(!nodes.length){box.innerHTML='<div class="empty">No nodes.</div>';return;}
+  let h=`<table><thead><tr><th>Node</th><th>Op / Value</th><th>Left</th><th>Right</th><th>Labels</th></tr></thead><tbody>`;
+  nodes.forEach(n=>{
+    let isLeaf=n.left===null&&n.right===null;
+    let opB=isLeaf?`<span class="badge b-leaf">${esc(n.op)}</span>`:`<span class="badge b-op">${esc(n.op)}</span>`;
+    let lB=n.left!==null?`<span class="badge b-id">n${n.left}</span>`:'—';
+    let rB=n.right!==null?`<span class="badge b-id">n${n.right}</span>`:'—';
+    let lblB=n.labels.length?n.labels.map(l=>`<span class="badge b-lbl">${esc(l)}</span>`).join(' '):'—';
+    h+=`<tr><td><span class="badge b-id">n${n.id}</span></td><td>${opB}</td><td>${lB}</td><td>${rB}</td><td>${lblB}</td></tr>`;
+  });
+  h+=`</tbody></table>`;
+  box.innerHTML=h;
+}
+
+function renderSummary(res,box){
+  let h=`<div class="stats">
+    <div class="stat"><div class="stat-n">${res.lines.length}</div><div class="stat-l">Instructions parsed</div></div>
+    <div class="stat"><div class="stat-n">${res.nodes.length}</div><div class="stat-l">DAG nodes created</div></div>
+  </div>`;
+  h+=`<div class="sec-label" style="margin-bottom:8px">Variable to node mapping</div>`;
+  h+=`<div class="env-box">`;
+  for(let[k,v] of Object.entries(res.env)){
+    h+=`<div class="env-row"><span class="k">${esc(k)}</span> <span style="color:#a0a0a0"> → </span><span class="v">n${v}</span></div>`;
+  }
+  h+=`</div>`;
+  box.innerHTML=h;
+}
+
+function run(){
+  let txt=document.getElementById('tac').value;
+  let st=document.getElementById('st');
+  try{
+    if(!txt.trim()){st.textContent='Input is empty.';st.className='status err';return;}
+    let res=parseTAC(txt);
+    renderGraph(res.nodes,document.getElementById('graph-box'));
+    renderTable(res.nodes,document.getElementById('tbl-box'));
+    renderSummary(res,document.getElementById('sum-box'));
+    st.textContent='Done — '+res.nodes.length+' nodes generated from '+res.lines.length+' instructions.';
+    st.className='status ok';
+    document.querySelector('.tab[data-p="graph"]').click();
+  }catch(e){
+    st.textContent=e.message;
+    st.className='status err';
+  }
+}
+
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('on'));
+    t.classList.add('on');
+    document.getElementById('panel-'+t.dataset.p).classList.add('on');
+  });
+});
+
+document.getElementById('run').addEventListener('click',run);
+
+document.getElementById('clr').addEventListener('click',()=>{
+  document.getElementById('tac').value='';
+  document.getElementById('st').textContent='Ready';
+  document.getElementById('st').className='status';
+  document.getElementById('graph-box').innerHTML='<div class="empty">Click <strong>Generate DAG</strong> to construct the graph.</div>';
+  document.getElementById('tbl-box').innerHTML='<div class="empty">Click <strong>Generate DAG</strong> to view nodes.</div>';
+  document.getElementById('sum-box').innerHTML='<div class="empty">Click <strong>Generate DAG</strong> to view summary.</div>';
+  document.getElementById('legend').style.display='none';
+});
+
+document.getElementById('d1').addEventListener('click',()=>{
+  document.getElementById('tac').value='t1 = 4 * i\nt2 = a + t1\nt3 = 4 * i\nt4 = b + t3\nt5 = t2 * t4';run();
+});
+document.getElementById('d2').addEventListener('click',()=>{
+  document.getElementById('tac').value='a = b + c\nb = a - d\nc = b + c\nd = a - d';run();
+});
+document.getElementById('d3').addEventListener('click',()=>{
+  document.getElementById('tac').value='x = y * z\nw = p + y\ny = y * z\nu = w + y';run();
+});
+
+run();
+</script>
+</body>
+</html>
